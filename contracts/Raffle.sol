@@ -12,6 +12,7 @@ import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 
 error Raffle__NotEnoughEntryFee();
+error Raffle__TransferFailed();
 
 contract Raffle is VRFConsumerBaseV2 {
     /* State Variables */
@@ -31,9 +32,13 @@ contract Raffle is VRFConsumerBaseV2 {
     // since we want only one random number to be returned, making it a constant and not passing it in the constructor
     uint32 private constant NUM_WORDS = 1;
 
+    /* Lottery Variables */
+    address private s_recentWinner;
+
     /* Events */
     event RaffleEnter(address indexed player);
     event RequestedRaffleWinner(uint256 indexed requestId);
+    event WinnerPicked(address indexed winner);
 
     // since Raffle is extension of VRFConsumerBaseV2, we pass the constructor of VRFConsumerBaseV2 next to the Raffle constructor
     // vrfCoordinatorV2 is the address that fulfills requestRandomness
@@ -81,10 +86,20 @@ contract Raffle is VRFConsumerBaseV2 {
     }
 
     // Raffle is extension of VRFConsumerBaseV2, which takes 2 input parameters, your subscription requestId & the array of randomWords
-    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords)
-        internal
-        override
-    {}
+    function fulfillRandomWords(
+        uint256, /* requestId */
+        uint256[] memory randomWords
+    ) internal override {
+        uint256 indexOfWinner = randomWords[0] % s_players.length;
+        address payable recentWinner = s_players[indexOfWinner];
+        s_recentWinner = recentWinner;
+        (bool success, ) = recentWinner.call{value: address(this).balance}("");
+        if (!success) {
+            revert Raffle__TransferFailed();
+        }
+        // in order to keep track of list of previous winners, we will emit an event
+        emit WinnerPicked(recentWinner);
+    }
 
     /* View / Pure Functions */
 
@@ -94,5 +109,9 @@ contract Raffle is VRFConsumerBaseV2 {
 
     function getPlayer(uint256 player) public view returns (address) {
         return s_players[player];
+    }
+
+    function getRecentWinner() public view returns (address) {
+        return s_recentWinner;
     }
 }
