@@ -9,5 +9,6 @@ module.exports = async function ({ getNamedAccounts, deployments }) {
     if (developmentChains.includes(network.name)) {
         log("Local network detected! Deploying mocks....")
         // deploy a mock vrfcoordinator
+        await deploy("VRFCo")
     }
 }
