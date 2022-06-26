@@ -5,7 +5,7 @@ const { verify } = require("../utils/verify")
 const VRF_SUB_FUND_AMOUNT = ethers.utils.parseEther("30")
 
 module.exports = async function ({ getNamedAccounts, deployments }) {
-    const { deploy, logs } = deployments
+    const { deploy, log } = deployments
     const { deployer } = await getNamedAccounts()
     const chainId = network.config.chainId
     let vrfCoordinatorV2Address, subcriptionId
@@ -20,7 +20,7 @@ module.exports = async function ({ getNamedAccounts, deployments }) {
         // once you have the subscriptionId, we need to fund it.
         // Usually, you'd need the link token on a real network
         // the current iteration of the mock, allows you to fund it without the link token
-        await vrfcoordinatorV2Mock.fundSubscription(subscriptionId, VRF_SUB_FUND_AMOUNT)
+        await vrfcoordinatorV2Mock.fundSubscription(subcriptionId, VRF_SUB_FUND_AMOUNT)
     } else {
         vrfCoordinatorV2Address = networkConfig[chainId]["vrfCoordinatorV2"]
         subcriptionId = networkConfig[chainId]["subscriptionId"]
@@ -54,7 +54,7 @@ module.exports = async function ({ getNamedAccounts, deployments }) {
         await verify(raffle.address, args)
     }
 
-    log("--------------------------------------------------------------------------")
+    log("---------------------------------------------------------------------------")
 }
 
 module.exports.tags = ["all", "raffle"]
