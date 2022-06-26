@@ -18,7 +18,7 @@ error Raffle__NotOpen();
 error Raffle__UpkeepNotNeeded(uint256 currentBalance, uint256 numPlayers, uint256 raffleState);
 
 /** @title A working Raffle contract
- *  @author Patrick Collins
+ *  @author Neeraj Nerlekar. Mentor - Patrick Collins
  *  @notice This contract is for creating an untamperable decentralized raffle
  *  @dev This implements Chainlink VRF v2 and Chainlink Keepers
  */
