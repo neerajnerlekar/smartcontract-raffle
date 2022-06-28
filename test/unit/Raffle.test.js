@@ -4,7 +4,7 @@ const { developmentChains, networkConfig } = require("../../helper.hardhat.confi
 
 !developmentChains.includes(network.name)
     ? describe.skip
-    : describe("Raffle Unit Test", async function () {
+    : describe("Raffle Unit Test", function () {
           let raffle, vrfcoordinatorV2Mock, raffleEntranceFee, deployer, interval
           const chainId = network.config.chainId
 
@@ -17,7 +17,7 @@ const { developmentChains, networkConfig } = require("../../helper.hardhat.confi
               interval = await raffle.getInterval()
           })
 
-          describe("constructor", async function () {
+          describe("constructor", function () {
               it("initializes the raffle correctly", async function () {
                   // Ideally we make our tests have 1 assert per "it". But adding all asserts here loosely
                   const raffleState = await raffle.getRaffleState()
@@ -28,7 +28,7 @@ const { developmentChains, networkConfig } = require("../../helper.hardhat.confi
               })
           })
 
-          describe("enterRaffle", async function () {
+          describe("enterRaffle", function () {
               it("reverts when you don't pay enough", async function () {
                   await expect(raffle.enterRaffle()).to.be.revertedWith("Raffle__NotEnoughEntryFee")
               })
@@ -45,7 +45,7 @@ const { developmentChains, networkConfig } = require("../../helper.hardhat.confi
               })
               it("doesn't allow entrance when raffle is calculating", async function () {
                   await raffle.enterRaffle({ value: raffleEntranceFee })
-                  await network.provider.send("evm_increaseTime", [interval.toNumber() + 1000])
+                  await network.provider.send("evm_increaseTime", [interval.toNumber() + 1])
                   await network.provider.send("evm_mine", [])
                   //   await network.provider.request({ method: "evm_mine", params: [] })
                   // we pretend to be a chainlink keeper
@@ -53,6 +53,40 @@ const { developmentChains, networkConfig } = require("../../helper.hardhat.confi
                   await expect(raffle.enterRaffle({ value: raffleEntranceFee })).to.be.revertedWith(
                       "Raffle__NotOpen"
                   )
+              })
+          })
+
+          describe("checkUpkeep", async function () {
+              it("returns false if people haven't sent any ETH", async function () {
+                  await network.provider.send("evm_increaseTime", [interval.toNumber() + 1])
+                  await network.provider.send("evm_mine", [])
+                  // callstatic -> we can simulate a transcation to be sent.
+                  const { upkeepNeeded } = await raffle.callStatic.checkUpkeep([])
+                  assert(!upkeepNeeded)
+              })
+              it("returns false if raffle isn't open", async function () {
+                  await raffle.enterRaffle({ value: raffleEntranceFee })
+                  await network.provider.send("evm_increaseTime", [interval.toNumber() + 1])
+                  await network.provider.send("evm_mine", [])
+                  await raffle.performUpkeep([])
+                  const raffleState = await raffle.getRaffleState()
+                  const { upkeepNeeded } = await raffle.callStatic.checkUpkeep([])
+                  assert.equal(raffleState.toString(), "1")
+                  assert.equal(upkeepNeeded, false)
+              })
+              it("returns false if enough time hasn't passed", async function () {
+                  await raffle.enterRaffle({ value: raffleEntranceFee })
+                  await network.provider.send("evm_increaseTime", [interval.toNumber() - 10])
+                  await network.provider.send("evm_mine", [])
+                  const { upkeepNeeded } = await raffle.callStatic.checkUpkeep([])
+                  assert(!upkeepNeeded)
+              })
+              it("passes if enough time has passed, has players and eth, and is open", async function () {
+                  await raffle.enterRaffle({ value: raffleEntranceFee })
+                  await network.provider.send("evm_increaseTime", [interval.toNumber() + 1])
+                  await network.provider.send("evm_mine", [])
+                  const { upkeepNeeded } = await raffle.callStatic.checkUpkeep([])
+                  assert(upkeepNeeded)
               })
           })
       })
