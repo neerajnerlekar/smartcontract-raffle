@@ -89,4 +89,33 @@ const { developmentChains, networkConfig } = require("../../helper.hardhat.confi
                   assert(upkeepNeeded)
               })
           })
+
+          describe("performUpkeep", function () {
+              it("can only run if checkUpkeep is true", async function () {
+                  await raffle.enterRaffle({ value: raffleEntranceFee })
+                  await network.provider.send("evm_increaseTime", [interval.toNumber() + 1])
+                  await network.provider.send("evm_mine", [])
+                  const tx = await raffle.performUpkeep([])
+                  assert(tx)
+              })
+              it("reverts when checkUpkeep is false", async function () {
+                  await expect(raffle.performUpkeep([])).to.be.revertedWith(
+                      "Raffle__UpkeepNotNeeded"
+                  )
+              })
+              it("updates the raffle state, emits an event, and calls the vrf coordinator", async function () {
+                  await raffle.enterRaffle({ value: raffleEntranceFee })
+                  await network.provider.send("evm_increaseTime", [interval.toNumber() + 1])
+                  await network.provider.send("evm_mine", [])
+                  const txResponse = await raffle.performUpkeep([])
+                  const txReceipt = await txResponse.wait(1)
+                  // the fulfillRandomWords also emits the event after the performUpkeep event and has requestId.
+                  // so emit RequestRandomWinner(requestId) is redundant as it is emitted by the vrfcoordinatorV2Interface.
+                  // hence using txReceipt.events[1], as it is fired after emit RequestRandomWinner(requestId)
+                  const requestId = txReceipt.events[1].args.requestId
+                  const raffleState = await raffle.getRaffleState()
+                  assert(requestId.toNumber() > 0)
+                  assert(raffleState.toString() == "1")
+              })
+          })
       })
