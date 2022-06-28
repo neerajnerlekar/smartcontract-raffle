@@ -122,11 +122,12 @@ contract Raffle is VRFConsumerBaseV2, KeeperCompatibleInterface {
             bytes memory /* performData */
         )
     {
-        bool isOpen = (RaffleState.OPEN == s_raffleState);
+        bool isOpen = (s_raffleState == RaffleState.OPEN);
         bool timePassed = ((block.timestamp - s_lastTimeStamp) > i_interval);
         bool hasPlayers = (s_players.length > 0);
-        bool hasBalance = address(this).balance > 0;
+        bool hasBalance = (address(this).balance > 0);
         upkeepNeeded = (isOpen && timePassed && hasPlayers && hasBalance);
+        return (upkeepNeeded, "0x0");
     }
 
     // transforming the requestRandomWinner to performUpkeep function, since checkUpkeep is true, it will trigger the performUpkeep

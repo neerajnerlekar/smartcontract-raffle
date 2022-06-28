@@ -5,7 +5,7 @@ const { developmentChains, networkConfig } = require("../../helper.hardhat.confi
 !developmentChains.includes(network.name)
     ? describe.skip
     : describe("Raffle Unit Test", async function () {
-          let raffle, vrfcoordinatorV2Mock, raffleEntranceFee, deployer
+          let raffle, vrfcoordinatorV2Mock, raffleEntranceFee, deployer, interval
           const chainId = network.config.chainId
 
           beforeEach(async function () {
@@ -14,13 +14,13 @@ const { developmentChains, networkConfig } = require("../../helper.hardhat.confi
               raffle = await ethers.getContract("Raffle", deployer)
               vrfcoordinatorV2Mock = await ethers.getContract("VRFCoordinatorV2Mock", deployer)
               raffleEntranceFee = await raffle.getEntranceFee()
+              interval = await raffle.getInterval()
           })
 
           describe("constructor", async function () {
               it("initializes the raffle correctly", async function () {
                   // Ideally we make our tests have 1 assert per "it". But adding all asserts here loosely
                   const raffleState = await raffle.getRaffleState()
-                  const interval = await raffle.getInterval()
                   const entranceFee = await raffle.getEntranceFee()
                   assert.equal(raffleState.toString(), "0")
                   assert.equal(interval.toString(), networkConfig[chainId]["interval"])
@@ -41,6 +41,17 @@ const { developmentChains, networkConfig } = require("../../helper.hardhat.confi
                   await expect(raffle.enterRaffle({ value: raffleEntranceFee })).to.emit(
                       raffle,
                       "RaffleEnter"
+                  )
+              })
+              it("doesn't allow entrance when raffle is calculating", async function () {
+                  await raffle.enterRaffle({ value: raffleEntranceFee })
+                  await network.provider.send("evm_increaseTime", [interval.toNumber() + 1000])
+                  await network.provider.send("evm_mine", [])
+                  //   await network.provider.request({ method: "evm_mine", params: [] })
+                  // we pretend to be a chainlink keeper
+                  await raffle.performUpkeep([])
+                  await expect(raffle.enterRaffle({ value: raffleEntranceFee })).to.be.revertedWith(
+                      "Raffle__NotOpen"
                   )
               })
           })
